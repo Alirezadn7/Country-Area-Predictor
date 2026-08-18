@@ -1,73 +1,83 @@
 # Country Area Prediction
 
-A small Machine Learning project that scrapes country data (population and area) from the web, stores it locally in SQLite, and trains a Decision Tree model to predict a country's area from its population. It is built as a learning exercise for web scraping, data pipelining, and scikit-learn regression.
+A lightweight end-to-end machine learning project that scrapes real country data (population & area) from the web, stores it locally in SQLite, and trains a **Decision Tree regressor** to predict a country's area from its population.
 
-## Key Features
+Built as a portfolio piece demonstrating web scraping, data pipelining, and scikit-learn regression.
 
-- **Web scraping** of real country data (population + area) using `requests` and `BeautifulSoup`.
-- **Local persistence** with SQLite — no database server required.
-- **Supervised regression** model trained with scikit-learn's `DecisionTreeRegressor`.
-- **Interactive model testing** — enter a population and get a predicted area.
-- **One-command pipeline** that runs scrape → train → test.
+## Features
+
+- Scrapes real country data with `requests` + `BeautifulSoup`.
+- Stores data locally with **SQLite** (no database server required).
+- Trains a `DecisionTreeRegressor` (population → area).
+- Interactive CLI to test the model with new inputs.
+- One-command pipeline: **scrape → train → test**.
 
 ## Tech Stack
 
-- Python 3.13
-- scikit-learn (Decision Tree Regressor)
-- numpy
-- requests + BeautifulSoup (web scraping)
-- sqlite3 (built-in, local storage)
+| Layer        | Technology                                     |
+|--------------|------------------------------------------------|
+| Language     | Python 3.13                                    |
+| ML           | scikit-learn, numpy                            |
+| Scraping     | requests, BeautifulSoup (bs4)                  |
+| Storage      | sqlite3 (standard library)                     |
+
+## ML Pipeline
+
+```mermaid
+graph LR
+    A[Web page] --> B[webscrape.py]
+    B -->|INSERT| C[(country.db)]
+    C -->|SELECT| D[ml.py]
+    D -->|fit| E[DecisionTreeRegressor]
+    E -->|load| F[predict.py]
+    F --> G[Predictions & Metrics]
+```
 
 ## Project Structure
 
 ```
-├── main.py        # Orchestrator: runs scrape → train → test
-├── webscrape.py   # Scrapes country data and writes it to SQLite
-├── ml.py          # Loads data from SQLite and trains the model
-├── predict.py     # Interactive CLI to test the model (with metrics)
-├── import sys.py  # Utility class: LCA (Lowest Common Ancestor, binary lifting)
+├── main.py        # Orchestrates the full pipeline (scrape → train → test)
+├── webscrape.py   # Scrapes country data into SQLite
+├── ml.py          # Loads data and trains the model
+├── predict.py     # Interactive CLI: metrics + predictions
+├── import sys.py  # Utility: LCA (Lowest Common Ancestor) class
 ├── requirements.txt
 ├── .gitignore
 └── README.md
 ```
 
-## Dataset Description
+## Dataset
 
-The dataset is scraped from `https://www.scrapethissite.com/pages/simple/`. Each of the **250 rows** represents a country with:
+Scraped from `https://www.scrapethissite.com/pages/simple/` into the `countries` table of the local `country.db` database (generated at runtime, not committed to the repo).
 
-| Field        | Type     | Description                          |
-|--------------|----------|--------------------------------------|
-| `country`    | TEXT     | Country name                         |
-| `population` | INTEGER  | Population of the country            |
-| `area`       | REAL     | Area in square kilometers (km²)      |
+| Field        | Type     | Description                     |
+|--------------|----------|---------------------------------|
+| `country`    | TEXT     | Country name                    |
+| `population` | INTEGER  | Population of the country       |
+| `area`       | REAL     | Area in km²                     |
 
-The data is stored locally in `country.db` (a SQLite database), which is generated at runtime and is intentionally **not** committed to the repository.
+> Rows accumulate on each scrape run (there is no de-duplication).
 
-## ML Pipeline
+## Input, Target, Model & Metrics
 
-1. **Scrape** — `webscrape.py` fetches and parses the country list, then inserts records into the `countries` table.
-2. **Preprocess** — `ml.py` reads `(population, area)` pairs from SQLite and builds numpy arrays.
-3. **Feature** — population is the single input feature; the raw value is used directly (no scaling/normalization).
-4. **Train** — a `DecisionTreeRegressor` is fitted to predict `area` from `population`.
-5. **Evaluate** — `predict.py` reports regression metrics via cross-validation.
+- **Input feature:** `population`
+- **Target:** `area`
+- **Model:** `DecisionTreeRegressor` (scikit-learn)
+- **Metrics:** R² (5-fold cross-validation) and Mean Absolute Error
 
 ## Installation & Setup
 
-Requires Python 3 and the dependencies in `requirements.txt`.
-
 ```bash
-# 1. Create a virtual environment (recommended)
 python -m venv .venv
 .venv\Scripts\activate          # Windows
 # source .venv/bin/activate     # macOS / Linux
 
-# 2. Install dependencies
 pip install -r requirements.txt
 ```
 
-## How to Train the Model
+## Usage
 
-Run the full pipeline (scrape data → train model → interactive test):
+Run the full pipeline (scrape → train → interactive test):
 
 ```bash
 python main.py
@@ -78,52 +88,40 @@ Or run each step manually:
 ```bash
 python webscrape.py   # 1. Scrape data into country.db
 python ml.py          # 2. Train the model
+python predict.py     # 3. Test / evaluate interactively
 ```
 
-## How to Evaluate / Use the Model
-
-Start the interactive tester, which also prints model accuracy:
-
-```bash
-python predict.py
-```
+### Interactive example
 
 ```
 Model score (population -> area):  R² = 0.838   MAE = 83,999
 Type a number and press Enter. Enter 'q' to quit.
-population -> 1000000
-area = 28,051.0
-```
-
-Type a population value to see the predicted area. Enter `q`, `quit`, or `exit` to leave.
-
-## Example Usage
-
-```
 population -> 84000000
 area = 357,021.0
 ```
 
-## Configuration / Environment Variables
+Enter a population to get a predicted area; type `q`, `quit`, or `exit` to leave.
 
-No configuration is required. The SQLite file (`country.db`) is created in the project directory on first run. No credentials or secrets are needed.
+## Results & Limitations
 
-## Results / Metrics
+- **R² (5-fold CV):** `0.838` — the model explains ~84% of variance in area.
+- **MAE:** `83,999 km²` — **reported on the training data (in-sample)**, not cross-validated.
 
-Measured inside `predict.py` using 5-fold cross-validation on a Decision Tree model (population → area):
+Limitations:
 
-- **R² score:** `0.838` (~84% of variance explained)
-- **Mean Absolute Error (MAE):** `83,999 km²`
+- Uses only **one feature** (`population`), limiting predictive power.
+- **MAE is in-sample**, so it may be optimistic compared to unseen data.
+- A reverse model (`area2pop`) is trained in `predict.py` but is **not exposed** in the interactive CLI.
 
-> Note: metrics are recomputed/reported each time `predict.py` runs.
+## Configuration
+
+No configuration or environment variables are required. The `country.db` SQLite file is created automatically on first run. No credentials or secrets are used.
 
 ## Future Improvements
 
-- Store a single clean copy of the data (avoid duplicate rows on repeated scraping).
-- Add more predictive features to improve area prediction.
-- Add a README-driven reverse model (predict population from area) as a full module.
-- Replace hardcoded scraping details with configuration.
+- De-duplicate data (avoid accumulating rows on repeated scraping).
+- Add more features (e.g., region, density) to improve predictions.
+- Expose the trained reverse model (`area → population`) in the CLI.
+- Persist and reload the trained model (e.g., `joblib`) instead of retraining each run.
+- Convert metrics to proper train/test split reporting.
 
-## AI Assistance
-
-This project was developed with the assistance of **OpenCode**, used as an AI development assistant for coding, debugging, and refactoring throughout the lifecycle of the project.
